@@ -17,92 +17,58 @@
           core.editor = "emacs -nw";
           pull.rebase = false;
           push.autoSetupRemote = true;
-          
-          # Better diffs
           diff.algorithm = "histogram";
-          
-          # Reuse recorded resolutions
           rerere.enabled = true;
-          
-          # Color output
           color.ui = "auto";
-          
-          # Show branches sorted by most recent commit
           branch.sort = "-committerdate";
         };
         
         aliases = {
-          # Status and info
           st = "status";
           s = "status -s";
-          
-          # Committing
           ci = "commit";
           cm = "commit -m";
           ca = "commit --amend";
           cam = "commit --amend -m";
-          
-          # Staging
           a = "add";
           aa = "add -A";
           ap = "add -p";
-          
-          # Branching
           co = "checkout";
           cob = "checkout -b";
           br = "branch";
           brd = "branch -d";
           brD = "branch -D";
-          
-          # Logging
           l = "log --oneline --graph --decorate";
           lg = "log --oneline --graph --decorate --all";
           ll = "log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit";
-          
-          # Diffing
           d = "diff";
           ds = "diff --staged";
           dc = "diff --cached";
-          
-          # Stashing
           stash-all = "stash save --include-untracked";
-          
-          # Pushing/Pulling
           pf = "push --force-with-lease";
           pl = "pull";
           plo = "pull origin";
           psh = "push";
           psho = "push origin";
-          
-          # Rebasing
           rb = "rebase";
           rbi = "rebase -i";
           rbc = "rebase --continue";
           rba = "rebase --abort";
-          
-          # Undoing
           unstage = "restore --staged";
           uncommit = "reset --soft HEAD~1";
         };
         
         ignores = [
-          # OS files
           ".DS_Store"
           "Thumbs.db"
-          
-          # Editor files
           "*~"
           "*.swp"
           "*.swo"
           ".vscode/"
           ".idea/"
-          
-          # Nix
           "result"
           "result-*"
           ".direnv/"
-          
-          # Language specific
           "node_modules/"
           "__pycache__/"
           "*.pyc"
@@ -118,7 +84,6 @@
         pkgs = import nixpkgs { inherit system; };
         config = mkGitConfig pkgs;
         
-        # Create gitconfig file
         gitconfig = pkgs.writeText "gitconfig" ''
           [user]
             name = ${config.userName}
@@ -155,33 +120,40 @@
         
         gitignore = pkgs.writeText "gitignore" 
           (pkgs.lib.concatStringsSep "\n" config.ignores);
-        
-        # Setup script
-        setupGit = pkgs.writeShellScriptBin "setup-git-config" ''
-          echo "Setting up Git configuration..."
-          
-          mkdir -p ~/.config/git
-          
-          ln -sf ${gitconfig} ~/.config/git/config
-          ln -sf ${gitignore} ~/.config/git/ignore
-          
-          echo "✓ Git config linked to ~/.config/git/config"
-          echo "✓ Global gitignore linked to ~/.config/git/ignore"
-        '';
+
+        gitWrapper = pkgs.stdenv.mkDerivation {
+          name = "git-with-config";
+          nativeBuildInputs = [ pkgs.makeWrapper ];
+          dontUnpack = true;
+          dontBuild = true;
+          installPhase = ''
+            mkdir -p $out/bin
+            makeWrapper ${pkgs.git}/bin/git $out/bin/git \
+              --set GIT_CONFIG_GLOBAL ${gitconfig} \
+              --set GIT_CONFIG_SYSTEM /dev/null
+          '';
+        };
         
       in
       {
         packages = {
-          default = setupGit;
-          setup = setupGit;
+          default = gitWrapper;
+          git = gitWrapper;
         };
         
         apps.default = {
           type = "app";
-          program = "${setupGit}/bin/setup-git-config";
+          program = "${gitWrapper}/bin/git";
+        };
+
+        devShells.default = pkgs.mkShell {
+          packages = [ gitWrapper ];
+          shellHook = ''
+            echo "Git with custom configuration"
+            echo "Run 'git config --list' to see your config"
+          '';
         };
         
-        # Export config for home-manager
         lib.gitConfig = config;
       }
     ) // {
