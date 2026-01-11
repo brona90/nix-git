@@ -83,9 +83,6 @@
           # Undoing
           unstage = "restore --staged";
           uncommit = "reset --soft HEAD~1";
-          
-          # Cleanup
-          cleanup = "!git branch --merged | grep -v '\\*\\|main\\|master' | xargs -n 1 git branch -d";
         };
         
         ignores = [
@@ -114,9 +111,6 @@
           "*.class"
         ];
       };
-      
-      mkGitignore = ignores: pkgs.writeText "gitignore" 
-        (pkgs.lib.concatStringsSep "\n" ignores);
         
     in
     flake-utils.lib.eachDefaultSystem (system:
@@ -159,7 +153,8 @@
             (pkgs.lib.mapAttrsToList (name: value: "  ${name} = ${value}") config.aliases)}
         '';
         
-        gitignore = mkGitignore config.ignores;
+        gitignore = pkgs.writeText "gitignore" 
+          (pkgs.lib.concatStringsSep "\n" config.ignores);
         
         # Setup script
         setupGit = pkgs.writeShellScriptBin "setup-git-config" ''
