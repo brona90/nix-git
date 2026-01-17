@@ -6,12 +6,17 @@
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, flake-utils }:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      flake-utils,
+    }:
     let
       mkGitConfig = pkgs: {
         userName = "Gregory Foster";
         userEmail = "brona90@gmail.com";
-        
+
         extraConfig = {
           init.defaultBranch = "main";
           core.editor = "emacs -nw";
@@ -22,7 +27,7 @@
           color.ui = "auto";
           branch.sort = "-committerdate";
         };
-        
+
         aliases = {
           st = "status";
           s = "status -s";
@@ -57,7 +62,7 @@
           unstage = "restore --staged";
           uncommit = "reset --soft HEAD~1";
         };
-        
+
         ignores = [
           ".DS_Store"
           "Thumbs.db"
@@ -77,49 +82,50 @@
           "*.class"
         ];
       };
-        
+
     in
-    flake-utils.lib.eachDefaultSystem (system:
+    flake-utils.lib.eachDefaultSystem (
+      system:
       let
         pkgs = import nixpkgs { inherit system; };
         config = mkGitConfig pkgs;
-        
+
         gitconfig = pkgs.writeText "gitconfig" ''
           [user]
             name = ${config.userName}
             email = ${config.userEmail}
-          
+
           [init]
             defaultBranch = ${config.extraConfig.init.defaultBranch}
-          
+
           [core]
             editor = ${config.extraConfig.core.editor}
-          
+
           [pull]
             rebase = ${if config.extraConfig.pull.rebase then "true" else "false"}
-          
+
           [push]
             autoSetupRemote = ${if config.extraConfig.push.autoSetupRemote then "true" else "false"}
-          
+
           [diff]
             algorithm = ${config.extraConfig.diff.algorithm}
-          
+
           [rerere]
             enabled = ${if config.extraConfig.rerere.enabled then "true" else "false"}
-          
+
           [color]
             ui = ${config.extraConfig.color.ui}
-          
+
           [branch]
             sort = ${config.extraConfig.branch.sort}
-          
+
           [alias]
-          ${pkgs.lib.concatStringsSep "\n" 
-            (pkgs.lib.mapAttrsToList (name: value: "  ${name} = ${value}") config.aliases)}
+          ${pkgs.lib.concatStringsSep "\n" (
+            pkgs.lib.mapAttrsToList (name: value: "  ${name} = ${value}") config.aliases
+          )}
         '';
-        
-        gitignore = pkgs.writeText "gitignore" 
-          (pkgs.lib.concatStringsSep "\n" config.ignores);
+
+        gitignore = pkgs.writeText "gitignore" (pkgs.lib.concatStringsSep "\n" config.ignores);
 
         gitWrapper = pkgs.stdenv.mkDerivation {
           name = "git-with-config";
@@ -133,14 +139,14 @@
               --set GIT_CONFIG_SYSTEM /dev/null
           '';
         };
-        
+
       in
       {
         packages = {
           default = gitWrapper;
           git = gitWrapper;
         };
-        
+
         apps.default = {
           type = "app";
           program = "${gitWrapper}/bin/git";
@@ -153,12 +159,13 @@
             echo "Run 'git config --list' to see your config"
           '';
         };
-        
+
         lib.gitConfig = config;
 
         formatter = pkgs.nixfmt;
       }
-    ) // {
+    )
+    // {
       lib.mkGitConfig = mkGitConfig;
     };
 }
