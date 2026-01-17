@@ -155,6 +155,8 @@
         };
         
         lib.gitConfig = config;
+
+        formatter = pkgs.nixfmt;
       }
     ) // {
       lib.mkGitConfig = mkGitConfig;
